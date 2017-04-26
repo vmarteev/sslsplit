@@ -1069,6 +1069,33 @@ pxy_ossl_servername_cb(SSL *ssl, UNUSED int *al, void *arg)
 }
 #endif /* !OPENSSL_NO_TLSEXT */
 
+static int
+pxy_dstssl_custom_ext_add_cb(SSL *s, unsigned int ext_type, const unsigned char **out,
+       size_t *outlen, int *al, void *add_arg)
+{
+  pxy_conn_ctx_t *ctx = add_arg;
+
+  char *message = strdup(ctx->srchost_str);
+
+  *out = message;
+  *outlen = strlen(message) + 1;
+
+  return 1;
+}
+
+static void
+pxy_dstssl_custom_ext_free_cb(SSL *s, unsigned int ext_type, const unsigned char *out, void *add_arg)
+{
+  free((void *)out);
+}
+
+static int
+pxy_dstssl_custom_ext_parse_cb(SSL *s, unsigned int ext_type, const unsigned char *in,
+       size_t inlen, int *al, void *parse_arg)
+{
+       return 1;
+}
+
 /*
  * Create new SSL context for outgoing connections to the original destination.
  * If hostname sni is provided, use it for Server Name Indication.
@@ -1089,6 +1116,16 @@ pxy_dstssl_create(pxy_conn_ctx_t *ctx)
 	pxy_sslctx_setoptions(sslctx, ctx);
 
 	SSL_CTX_set_verify(sslctx, SSL_VERIFY_NONE, NULL);
+
+	SSL_CTX_add_client_custom_ext(
+		sslctx,
+		0xC0FE,
+		pxy_dstssl_custom_ext_add_cb,
+		pxy_dstssl_custom_ext_free_cb,
+		ctx, /* void *add_arg, */
+		pxy_dstssl_custom_ext_parse_cb,
+		ctx /* void *parse_arg */
+	);
 
 	ssl = SSL_new(sslctx);
 	SSL_CTX_free(sslctx); /* SSL_new() increments refcount */
