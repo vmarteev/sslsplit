@@ -1388,6 +1388,7 @@ pxy_http_resphdr_filter_line(const char *line, pxy_conn_ctx_t *ctx)
 		    !strncasecmp(line, "Strict-Transport-Security:", 26) ||
 		    /* Alternate Protocol
 		     * remove to prevent switching to QUIC, SPDY et al */
+		    !strncasecmp(line, "Alt-Svc:", 8) ||
 		    !strncasecmp(line, "Alternate-Protocol:", 19)) {
 			return NULL;
 		} else if (line[0] == '\0') {
